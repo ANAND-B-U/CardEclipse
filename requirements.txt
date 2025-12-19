@@ -1,0 +1,24 @@
+# Core web framework
+Flask==3.0.3
+flask-cors==4.0.0
+
+# Environment & configuration
+python-dotenv==1.0.1
+
+# AI SDKs
+google-generativeai==0.5.2
+openai==1.52.0
+mistralai==0.4.1
+
+# Image processing
+Pillow==11.0.0
+
+# Utilities
+phonenumbers==8.13.50
+werkzeug==3.1.3
+
+# Logging (comes with Python stdlib, but rich is nice for pretty logs)
+rich==13.9.4
+
+# Google API core (for exceptions like ResourceExhausted, InvalidArgument)
+google-api-core==2.23.0
