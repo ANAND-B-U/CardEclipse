@@ -93,7 +93,7 @@ POST /api/single
         "name": "Legend A",
         "title": "CEO",
         "company": "Alpha Pvt. Ltd.",
-        "phoneNumbers": ["+91 74188 58884"],
+        "phoneNumbers": ["+91 xxxxxxxxx4"],
         "email": "xxxxxxxxxx@alpha.com",
         "website": "www.alpha******.com",
         "model": "nvidia""
@@ -130,7 +130,7 @@ POST /api/batch
         "name": "Legend A",
         "title": "CEO",
         "company": "Alpha Pvt. Ltd.",
-        "phoneNumbers": ["+91 74188 58884"],
+        "phoneNumbers": ["+91 xxxxxxxxx4"],
         "email": "xxxxxxxxxx@alpha.com",
         "website": "www.alpha******.com",
         "model": "nvidia"
