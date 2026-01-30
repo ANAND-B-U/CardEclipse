@@ -127,12 +127,12 @@ POST /api/batch
       "filename": "card1.jpg",
       "success": true,
       "data": {
-        "name": "Senthilkumar M",
-        "title": "Marketing Executive",
-        "company": "Vesat Renewables Pvt. Ltd.",
+        "name": "Legend A",
+        "title": "CEO",
+        "company": "Alpha Pvt. Ltd.",
         "phoneNumbers": ["+91 74188 58884"],
-        "email": "sales@vesatsolar.com",
-        "website": "www.vesatsolar.com",
+        "email": "xxxxxxxxxx@alpha.com",
+        "website": "www.alpha******.com",
         "model": "nvidia"
       },
       "model_used": "nvidia",
@@ -172,13 +172,13 @@ All fields are **optional** — included only if data is present and valid.
 
 | Field        | Type              | Example                          |
 | ------------ | ----------------- | -------------------------------- |
-| `name`       | string            | "Senthilkumar M"               |
-| `title`      | string            | "Marketing Executive"          |
-| `company`    | string            | "Vesat Renewables Pvt. Ltd."   |
+| `name`       | string            | "Legend A"               |
+| `title`      | string            | "CEO"          |
+| `company`    | string            | "Alpha Pvt. Ltd."   |
 | `address`    | string            | "Chennai, Tamil Nadu, India"   |
-| `phoneNumbers` | array of string | ["+91 74188 58884"]            |
-| `email`      | string            | "sales@vesatsolar.com"         |
-| `website`    | string            | "www.vesatsolar.com"           |
+| `phoneNumbers` | array of string | ["+91*****4"]            |
+| `email`      | string            | "alpha***********.com"         |
+| `website`    | string            | "www.alpha******.com"           |
 | `tokens`     | integer           | 1020                           |
 | `model`      | string            | "nvidia"                       |
 
