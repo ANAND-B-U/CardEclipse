@@ -90,13 +90,13 @@ POST /api/single
 {
   "success": true,
   "data": {
-    "name": "Senthilkumar M",
-    "title": "Marketing Executive",
-    "company": "Vesat Renewables Pvt. Ltd.",
-    "phoneNumbers": ["+91 74188 58884"],
-    "email": "sales@vesatsolar.com",
-    "website": "www.vesatsolar.com",
-    "model": "nvidia"
+        "name": "Legend A",
+        "title": "CEO",
+        "company": "Alpha Pvt. Ltd.",
+        "phoneNumbers": ["+91 74188 58884"],
+        "email": "xxxxxxxxxx@alpha.com",
+        "website": "www.alpha******.com",
+        "model": "nvidia""
   },
   "model_used": "nvidia",
   "filename": "card.jpg"
