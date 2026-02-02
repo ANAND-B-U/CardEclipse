@@ -1,6 +1,6 @@
-# EliteScan Pro Frontend
+# EliteScan Frontend
 
-A premium, modern frontend for the EliteScan Pro business card OCR system, featuring a stunning black, gold, and purple theme with advanced animations and professional user experience.
+A premium, modern frontend for the EliteScan business card OCR system, featuring a stunning black, gold, and purple theme with advanced animations and professional user experience.
 
 ## 🎨 Design Features
 
@@ -271,4 +271,4 @@ Modify grid and flexbox properties:
 
 ---
 
-**EliteScan Pro Frontend** - Premium Business Card OCR Interface with Advanced Gold Effects
+**EliteScan Frontend** - Premium Business Card OCR Interface with Advanced Gold Effects

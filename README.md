@@ -1,8 +1,8 @@
-# 📇 EliteScan Pro - Business Card OCR System
+# 📇 EliteScan - Business Card OCR System
 
 A **premium**, **production‑ready** business card OCR application with advanced AI-powered text extraction, professional UI with gold dazzling effects, and comprehensive data export capabilities.
 
-**🌟 Enhanced Version of CardEclipse with Premium Features**
+**🌟 Professional Business Card OCR Solution**
 
 ---
 
@@ -247,6 +247,6 @@ MIT License — free to use, modify, and deploy.
 
 ---
 
-💡 Built for reliability — whether you're processing 1 card or 10,000, this API handles errors gracefully and delivers clean, structured contact data.
+💡 Built for reliability — whether you're processing 1 card or 10,000, EliteScan handles errors gracefully and delivers clean, structured contact data.
 
-Happy parsing! 🚀
+Happy parsing with EliteScan! 🚀
