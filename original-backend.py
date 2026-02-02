@@ -5,17 +5,20 @@ import io
 import base64
 import time
 import logging
-import csv
-import datetime
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+import google.generativeai as genai
 import openai
+from mistralai import Mistral
 from PIL import Image
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import phonenumbers
 from phonenumbers import NumberParseException
-from openai import PermissionDeniedError
+from google.api_core.exceptions import ResourceExhausted  
+from openai import PermissionDeniedError 
+from mistralai.models.sdkerror import SDKError  
+from google.api_core.exceptions import ResourceExhausted, InvalidArgument
 
 # -----------------------------------------------------------------------------
 # APP & CONFIG
@@ -27,22 +30,34 @@ app = Flask(__name__)
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
-# Configure logging
+# Configure logging: INFO to stdout, include timestamps and level
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = app.logger
+logger = app.logger  # reuse Flask logger (already bound to Werkzeug)
 
 # -----------------------------------------------------------------------------
 # API KEYS & CLIENTS
 # -----------------------------------------------------------------------------
 
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 NVIDIA_KEY = os.getenv("NVIDIA_API_KEY")
+MISTRAL_KEY = os.getenv("MISTRAL_API_KEY")
 
+if not GEMINI_KEY:
+    logger.error("Missing GEMINI_API_KEY in .env")
+    raise ValueError("Missing GEMINI_API_KEY in .env")
 if not NVIDIA_KEY:
     logger.error("Missing NVIDIA_API_KEY in .env")
     raise ValueError("Missing NVIDIA_API_KEY in .env")
+if not MISTRAL_KEY:
+    logger.error("Missing MISTRAL_API_KEY in .env")
+    raise ValueError("Missing MISTRAL_API_KEY in .env")
+
+# Gemini
+genai.configure(api_key=GEMINI_KEY)
+gemini_model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 # NVIDIA (OpenAI compatible)
 nvidia_client = openai.OpenAI(
@@ -50,7 +65,10 @@ nvidia_client = openai.OpenAI(
     api_key=NVIDIA_KEY,
 )
 
-logger.info("NVIDIA client initialized successfully")
+# Mistral
+mistral_client = Mistral(api_key=MISTRAL_KEY)
+
+logger.info("Model clients initialized successfully")
 
 # -----------------------------------------------------------------------------
 # SHARED PROMPT
@@ -182,6 +200,14 @@ def extract_json_from_text(text: str):
     except json.JSONDecodeError:
         pass
 
+    # `````` fenced block
+    match = re.search(r"``````", text, re.DOTALL | re.IGNORECASE)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            logger.debug("extract_json_from_text: fenced block parse failed")
+
     # first {...}
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match:
@@ -261,6 +287,96 @@ def extract_with_nvidia(image_path: str):
         logger.error(f"extract_with_nvidia: exception: {e}", exc_info=True)
         return None
 
+def extract_with_mistral(image_path: str):
+    logger.info(f"extract_with_mistral: starting for {image_path}")
+    try:
+        img_b64 = image_to_base64(image_path)
+        response = mistral_client.chat.complete(
+            model="mistral-large-2512",
+            messages=[
+                {"role": "system", "content": PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_b64}"
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": "Extract the business card details as JSON.",
+                        },
+                    ],
+                },
+            ],
+            temperature=0.1,
+            max_tokens=1000,
+        )
+        raw_text = response.choices[0].message.content
+        raw_json = extract_json_from_text(raw_text)
+        if not raw_json:
+            logger.warning(
+                f"extract_with_mistral: JSON parse failed. Snippet: {raw_text[:150]}..."
+            )
+            return None
+        result = normalize_output(raw_json, "mistral")
+        logger.info("extract_with_mistral: success")
+        return result
+
+    except SDKError as e:
+        # 401 / 403 from Mistral
+        if "Status 401" in str(e) or "Status 403" in str(e):
+            logger.error(f"extract_with_mistral: auth error: {e}", exc_info=True)
+            return {"_error": "mistral_auth_failed"}
+        logger.error(f"extract_with_mistral: SDKError: {e}", exc_info=True)
+        return None
+
+    except Exception as e:
+        logger.error(f"extract_with_mistral: exception: {e}", exc_info=True)
+        return None
+
+def extract_with_gemini(image_path: str):
+    logger.info(f"extract_with_gemini: starting for {image_path}")
+    try:
+        image_bytes = image_to_bytes(image_path)
+        response = gemini_model.generate_content(
+            [PROMPT, {"inline_data": {"mime_type": "image/jpeg", "data": image_bytes}}],
+            safety_settings={
+                k: "BLOCK_NONE"
+                for k in [
+                    "HARM_CATEGORY_HARASSMENT",
+                    "HARM_CATEGORY_HATE_SPEECH",
+                    "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "HARM_CATEGORY_DANGEROUS_CONTENT",
+                ]
+            },
+            generation_config={
+                "response_mime_type": "application/json",
+                "temperature": 0.1,
+            },
+        )
+        raw = json.loads(response.text)
+        tokens = getattr(response, "usage_metadata", None)
+        token_count = tokens.total_token_count if tokens else None
+        result = normalize_output(raw, "gemini", token_count)
+        logger.info("extract_with_gemini: success")
+        return result
+
+    except ResourceExhausted as e:
+        logger.error(f"extract_with_gemini: quota/429 error: {e}", exc_info=True)
+        return {"_error": "gemini_quota_exceeded"}
+
+    except InvalidArgument as e:
+        # Includes invalid API key
+        logger.error(f"extract_with_gemini: invalid key/400: {e}", exc_info=True)
+        return {"_error": "gemini_auth_failed"}
+
+    except Exception as e:
+        logger.error(f"extract_with_gemini: exception: {e}", exc_info=True)
+        return None
+
 # -----------------------------------------------------------------------------
 # DISPATCH LOGIC
 # -----------------------------------------------------------------------------
@@ -268,21 +384,29 @@ def extract_with_nvidia(image_path: str):
 def extract_card(image_path: str, model_choice: str = "auto"):
     logger.info(f"extract_card: model_choice={model_choice}, image={image_path}")
 
-    if model_choice == "nvidia":
-        order = ["nvidia"]
+    if model_choice == "gemini":
+        order = ["gemini", "nvidia", "mistral"]
+    elif model_choice == "nvidia":
+        order = ["nvidia", "mistral", "gemini"]
+    elif model_choice == "mistral":
+        order = ["mistral", "nvidia", "gemini"]
     else:
-        order = ["nvidia"]
+        order = ["nvidia", "mistral", "gemini"]
 
     last_model = "failed"
-    auth_errors = set()
+    auth_errors = set()   # track which providers failed auth/quota
 
     for model in order:
         last_model = model
         logger.info(f"extract_card: trying {model} for {image_path}")
 
         try:
-            if model == "nvidia":
+            if model == "gemini":
+                result = extract_with_gemini(image_path)
+            elif model == "nvidia":
                 result = extract_with_nvidia(image_path)
+            elif model == "mistral":
+                result = extract_with_mistral(image_path)
             else:
                 logger.warning(f"extract_card: unknown model '{model}'")
                 continue
@@ -293,6 +417,7 @@ def extract_card(image_path: str, model_choice: str = "auto"):
             )
             result = None
 
+        # Handle our special error flags
         if isinstance(result, dict) and "_error" in result:
             auth_errors.add(result["_error"])
             logger.warning(f"extract_card: {model} returned error flag {result['_error']}")
@@ -306,6 +431,7 @@ def extract_card(image_path: str, model_choice: str = "auto"):
 
     logger.error(f"extract_card: all models failed for {image_path}")
 
+    # If every model we tried hit auth/quota problems, surface that
     if auth_errors:
         return None, ",".join(sorted(auth_errors))
 
@@ -315,30 +441,13 @@ def extract_card(image_path: str, model_choice: str = "auto"):
 # ROUTES
 # -----------------------------------------------------------------------------
 
-@app.route("/", methods=["GET"])
-def root():
-    """Root endpoint showing API info."""
-    return jsonify(
-        {
-            "message": "Business Card OCR API",
-            "status": "running",
-            "version": "1.0.0",
-            "endpoints": {
-                "health": "/health",
-                "single_extraction": "/api/single (POST)",
-                "batch_extraction": "/api/batch (POST)"
-            },
-            "models": ["nvidia", "mistral", "microsoft", "gemini"]
-        }
-    )
-
 @app.route("/health", methods=["GET"])
 def health():
     """Simple health check endpoint."""
     return jsonify(
         {
             "status": "healthy",
-            "models": ["nvidia", "mistral", "microsoft", "gemini"],
+            "models": ["nvidia", "mistral", "gemini"],
             "endpoints": ["/api/single", "/api/batch"],
         }
     )
@@ -364,8 +473,13 @@ def extract_single():
                 os.remove(temp_path)
 
         if result is None:
+            # Default error
             error_msg = "Extraction failed with all models"
-            if "auth_failed" in used_model:
+
+            # Specific flags from extract_card (e.g. gemini_quota_exceeded, *_auth_failed)
+            if "gemini_quota_exceeded" in used_model:
+                error_msg = "Gemini quota exceeded and other models also failed"
+            elif "auth_failed" in used_model:
                 error_msg = "Authorization failed for one or more providers; check API keys"
 
             logger.error(f"/api/single: {error_msg} for file {file.filename}")
@@ -395,9 +509,15 @@ def extract_single():
     except Exception as e:
         logger.error(f"/api/single: unexpected error: {e}", exc_info=True)
         return jsonify({"success": False, "error": "Internal server error"}), 500
+    
 
 @app.route("/api/batch", methods=["POST"])
 def extract_batch():
+    """
+    POST form-data:
+      - images: multiple files
+      - model: 'auto' | 'nvidia' | 'mistral' | 'gemini' (optional, default=auto)
+    """
     try:
         logger.info("/api/batch: request received")
         model_choice = request.form.get("model", "auto")
@@ -419,9 +539,12 @@ def extract_batch():
 
             result, used_model = extract_card(temp_path, model_choice)
 
+            # Build per file error message similar to /api/single
             if result is None:
                 error_msg = "Extraction failed with all models"
-                if "auth_failed" in used_model:
+                if "gemini_quota_exceeded" in used_model:
+                    error_msg = "Gemini quota exceeded and other models also failed"
+                elif "auth_failed" in used_model:
                     error_msg = "Authorization failed for one or more providers; check API keys"
 
                 logger.error(
@@ -443,13 +566,7 @@ def extract_batch():
                 }
             )
 
-        return jsonify({"success": True, "total": len(results), "results": results})
-
-    except Exception as e:
-        logger.error(f"/api/batch: unexpected error: {e}", exc_info=True)
-        return jsonify({"success": False, "error": "Internal server error"}), 500
-
-    finally:
+        # Cleanup temp files
         for path in temp_paths:
             try:
                 os.remove(path)
@@ -457,101 +574,25 @@ def extract_batch():
             except OSError as e:
                 logger.warning(f"/api/batch: failed to delete temp file {path}: {e}")
 
-@app.route("/api/download/csv", methods=["POST"])
-def download_csv():
-    try:
-        data = request.get_json()
-        results = data.get("results", [])
-        
-        if not results:
-            return jsonify({"error": "No data to export"}), 400
-        
-        # Create CSV content
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Write headers
-        writer.writerow(["Name", "Title", "Company", "Email", "Phone", "Website", "Address", "Tokens Used", "Model", "Filename"])
-        
-        # Write data
-        for result in results:
-            data = result.get("data", {})
-            phones = data.get("phoneNumbers", [])
-            phone_str = "; ".join(phones) if phones else ""
-            
-            writer.writerow([
-                data.get("name", ""),
-                data.get("title", ""),
-                data.get("company", ""),
-                data.get("email", ""),
-                phone_str,
-                data.get("website", ""),
-                data.get("address", ""),
-                data.get("tokens", ""),
-                result.get("model_used", ""),
-                result.get("filename", "")
-            ])
-        
-        # Create file
-        output.seek(0)
-        return send_file(
-            io.BytesIO(output.getvalue().encode('utf-8')),
-            mimetype='text/csv',
-            as_attachment=True,
-            download_name=f'business_cards_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
-        )
-        
-    except Exception as e:
-        logger.error(f"CSV download error: {e}", exc_info=True)
-        return jsonify({"error": "Failed to generate CSV"}), 500
+        return jsonify({"success": True, "total": len(results), "results": results})
 
-@app.route("/api/download/excel", methods=["POST"])
-def download_excel():
-    try:
-        data = request.get_json()
-        results = data.get("results", [])
-        
-        if not results:
-            return jsonify({"error": "No data to export"}), 400
-        
-        # Create CSV content for Excel compatibility
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Write headers
-        writer.writerow(["Name", "Title", "Company", "Email", "Phone", "Website", "Address", "Tokens Used", "Model", "Filename"])
-        
-        # Write data
-        for result in results:
-            data = result.get("data", {})
-            phones = data.get("phoneNumbers", [])
-            phone_str = "; ".join(phones) if phones else ""
-            
-            writer.writerow([
-                data.get("name", ""),
-                data.get("title", ""),
-                data.get("company", ""),
-                data.get("email", ""),
-                phone_str,
-                data.get("website", ""),
-                data.get("address", ""),
-                data.get("tokens", ""),
-                result.get("model_used", ""),
-                result.get("filename", "")
-            ])
-        
-        # Create file
-        output.seek(0)
-        return send_file(
-            io.BytesIO(output.getvalue().encode('utf-8')),
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=f'business_cards_{datetime.datetime.now().strftime("%Y-%m-%d")}.xlsx'
-        )
-        
     except Exception as e:
-        logger.error(f"Excel download error: {e}", exc_info=True)
-        return jsonify({"error": "Failed to generate Excel"}), 500
+        logger.error(f"/api/batch: unexpected error: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+        # Cleanup temp files
+        for path in temp_paths:
+            try:
+                os.remove(path)
+                logger.debug(f"/api/batch: deleted temp file {path}")
+            except OSError as e:
+                logger.warning(f"/api/batch: failed to delete temp file {path}: {e}")
+
+        return jsonify({"success": True, "total": len(results), "results": results})
+
+    except Exception as e:
+        logger.error(f"/api/batch: unexpected error: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 # -----------------------------------------------------------------------------
 # ENTRYPOINT
@@ -560,4 +601,4 @@ def download_excel():
 if __name__ == "__main__":
     os.makedirs("temp", exist_ok=True)
     logger.info("Starting Flask app on 0.0.0.0:5000")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)

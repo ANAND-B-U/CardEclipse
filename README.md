@@ -1,19 +1,33 @@
-# 📇 Business Card Parser API
+# 📇 EliteScan Pro - Business Card OCR System
 
-A **production‑ready**, **multi‑model** API to extract structured contact information from business card images using **NVIDIA**, **Mistral**, and **Gemini** vision models with intelligent fallback.
+A **premium**, **production‑ready** business card OCR application with advanced AI-powered text extraction, professional UI with gold dazzling effects, and comprehensive data export capabilities.
+
+**🌟 Enhanced Version of CardEclipse with Premium Features**
 
 ---
 
 ## ✨ Features
 
+### 🤖 AI-Powered OCR
 - ✅ **Multi‑Model Support**: NVIDIA Phi‑3.5 Vision, Mistral Large (vision), Google Gemini 2.5 Flash  
 - 🔁 **Smart Fallback**: Auto‑retries with alternative models if one fails  
 - 🌍 **Global Phone Normalization**: Uses `phonenumbers` (Google libphonenumber) for international formats  
 - 🧹 **Clean Output**: Omits null/empty fields — only returns what's present  
 - 🛡️ **Robust Error Handling**: Detects quota limits, auth failures, and JSON parsing errors  
-- 📦 **Batch & Single Processing**: Upload one or many cards at once  
-- 📊 **Detailed Logging**: Per‑model attempts, failures, and fallbacks  
+
+### 🎨 Premium Frontend
+- ✅ **Gold Dazzling Effects**: Animated gold shimmer, glow, and pulse effects
+- ✅ **Glass Morphism**: Modern glass-like card designs with backdrop blur
+- ✅ **Professional Theme**: Black, gold, and purple color scheme
+- ✅ **Enhanced Notifications**: Premium success popups with progress bars
+- ✅ **Responsive Design**: Works on all screen sizes
+
+### � Advanced Features
+- � **Batch & Single Processing**: Upload one or many cards at once  
+- 📊 **Data Export**: CSV and Excel download with professional formatting
+- 📋 **Detailed Logging**: Per‑model attempts, failures, and fallbacks  
 - 🔐 **Secure**: Safe temp file handling, max upload size, no data leakage
+- 📁 **PDF Support**: Process PDF files alongside images
 
 ---
 
@@ -22,7 +36,7 @@ A **production‑ready**, **multi‑model** API to extract structured contact in
 ### 1️⃣ Install Dependencies
 
 ```bash
-pip install flask flask-cors python-dotenv pillow google-generativeai openai mistralai phonenumbers
+pip install -r requirements.txt
 ```
 
 ### 2️⃣ Set Up API Keys
@@ -37,10 +51,8 @@ MISTRAL_API_KEY=your_mistral_key_from_console_mistral_ai
 
 ### 3️⃣ Run the Server
 
-Assuming your main file is `app.py` (or update to your actual filename):
-
 ```bash
-python app.py
+python Business_card_Extractor_AI_API.py
 ```
 
 Server starts at:
@@ -49,11 +61,28 @@ Server starts at:
 http://localhost:5000
 ```
 
+### 4️⃣ Launch Premium Frontend
+
+```bash
+# Open the premium frontend in your browser
+open frontend/index.html
+```
+
+Or serve with a web server:
+
+```bash
+# Using Python
+cd frontend
+python -m http.server 8000
+
+# Then visit http://localhost:8000
+```
+
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
-### 🔍 Health Check
+### Health Check
 
 ```http
 GET /health

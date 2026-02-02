@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EliteScan Pro - Premium Business Card Scanner</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="bg-animation"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-id-card"></i>
+                <span>EliteScan Pro</span>
+            </div>
+            <div class="nav-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCards">0</div>
+                    <div class="stat-label">Cards Scanned</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="successRate">0%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="tokensUsed">0</div>
+                    <div class="stat-label">Tokens Used</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="main-grid">
+            <!-- Upload Section -->
+            <div class="glass-card">
+                <div class="section-header">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h2>Upload Business Cards</h2>
+                </div>
+
+                <div class="upload-area" id="uploadArea">
+                    <i class="fas fa-id-card upload-icon"></i>
+                    <h3>Drop Business Cards Here</h3>
+                    <p>Support JPG, PNG, PDF formats • Max 50MB per file</p>
+                    <button class="btn">
+                        <i class="fas fa-folder-open"></i>
+                        Choose Files
+                    </button>
+                    <input type="file" id="fileInput" class="file-input" multiple accept="image/*,.pdf">
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-success" id="processBtn" disabled>
+                        <i class="fas fa-magic"></i>
+                        Scan Cards
+                    </button>
+                    <button class="btn btn-danger" id="clearBtn">
+                        <i class="fas fa-trash"></i>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div class="glass-card">
+                <div class="section-header">
+                    <i class="fas fa-cog"></i>
+                    <h2>Scan Settings</h2>
+                </div>
+
+                <div class="setting-group">
+                    <label for="model">AI Model</label>
+                    <select id="model">
+                        <option value="auto">Auto Select</option>
+                        <option value="nvidia">NVIDIA Phi-3.5 Vision</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label>Processing Mode</label>
+                    <select id="processingMode">
+                        <option value="single">Single Card</option>
+                        <option value="batch">Batch Processing</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label>Output Format</label>
+                    <select id="outputFormat">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel</option>
+                        <option value="vcard">vCard</option>
+                    </select>
+                </div>
+
+                <div class="section-header">
+                    <i class="fas fa-info-circle"></i>
+                    <h2>API Status</h2>
+                </div>
+
+                <div id="apiStatus">
+                    <div class="message error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Checking API connection...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Files Queue -->
+        <div class="glass-card" id="filesSection" style="display: none;">
+            <div class="section-header">
+                <i class="fas fa-list"></i>
+                <h2>Processing Queue (<span id="fileCount">0</span>)</h2>
+            </div>
+
+            <div class="files-grid" id="filesList"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="glass-card" id="resultsSection" style="display: none;">
+            <div class="section-header">
+                <i class="fas fa-chart-bar"></i>
+                <h2>Scan Results</h2>
+            </div>
+
+            <div class="results-grid" id="resultsGrid"></div>
+
+            <div class="download-section" id="downloadSection" style="display: none;">
+                <div class="section-header">
+                    <i class="fas fa-download"></i>
+                    <h2>Export Data</h2>
+                </div>
+                <div class="download-buttons">
+                    <button class="btn btn-download" onclick="downloadCSV()">
+                        <i class="fas fa-file-csv"></i>
+                        Download CSV
+                    </button>
+                    <button class="btn btn-download" onclick="downloadExcel()">
+                        <i class="fas fa-file-excel"></i>
+                        Download Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Screen Button -->
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">
+        <i class="fas fa-expand"></i>
+    </button>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3>Scanning Business Cards...</h3>
+            <p>AI is extracting contact information</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
