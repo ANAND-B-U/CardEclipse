@@ -52,7 +52,7 @@ MISTRAL_API_KEY=your_mistral_key_from_console_mistral_ai
 ### 3️⃣ Run the Server
 
 ```bash
-python Business_card_Extractor_AI_API.py
+python backend.py
 ```
 
 Server starts at:
@@ -195,9 +195,24 @@ If the primary model fails (e.g., quota exceeded, auth error, bad JSON), the API
 
 ---
 
-## 📝 Output Schema
+## � Project Structure
 
-All fields are **optional** — included only if data is present and valid.
+```
+EliteScan/
+├── backend.py                          # Main backend application
+├── README.md                           # Main documentation
+├── requirements.txt                    # Python dependencies
+├── .env.example                        # Environment variables template
+├── .env                               # Environment variables (create from .env.example)
+├── .gitignore                         # Git ignore file
+└── frontend/                          # Premium frontend application
+    ├── index.html                      # Main frontend HTML
+    ├── styles.css                      # Premium styling with gold effects
+    ├── script.js                       # Frontend JavaScript logic
+    └── README.md                       # Frontend documentation
+```
+
+## 📝 Output Schema
 
 | Field        | Type              | Example                          |
 | ------------ | ----------------- | -------------------------------- |
